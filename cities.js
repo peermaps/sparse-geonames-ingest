@@ -70,7 +70,7 @@ function finish() {
     var buffers = []
     for (var k = i; k < i+rsize && k < records.length; k++) {
       buffers.push(
-        Buffer.from(varint.encode(records[i][0])),
+        Buffer.from(varint.encode(records[k][0])),
         records[k][1]
       )
     }
