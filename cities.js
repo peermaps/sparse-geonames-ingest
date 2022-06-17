@@ -6,7 +6,6 @@ var Transform = require('stream').Transform
 var split = require('split2')
 var varint = require('varint')
 var uniq = require('uniq')
-var lp = require('length-prefixed-buffers/without-count')
 var minimist = require('minimist')
 var bl = Buffer.byteLength
 
@@ -75,7 +74,7 @@ function finish() {
         records[k][1]
       )
     }
-    fs.writeFileSync(rfile, lp.from(buffers))
+    fs.writeFileSync(rfile, Buffer.concat(buffers))
   }
   var j = 0
   var lsize = 5_000
@@ -87,14 +86,21 @@ function finish() {
     meta.lookup.push(diff(l0,l1,l2))
     var buffers = []
     for (var k = i; k < i+lsize && k < lookup.length; k++) {
-      buffers.push(
-        Buffer.from(lookup[k][0]),
-        Buffer.from(varint.encode(lookup[k][1]))
-      )
+      var n = Buffer.byteLength(lookup[k][0])
+      var buf = Buffer.alloc(varint.encodingLength(n)
+        + n + varint.encodingLength(lookup[k][1]))
+      var offset = 0
+      varint.encode(n, buf, offset)
+      offset += varint.encode.bytes
+      buf.write(lookup[k][0], offset)
+      offset += n
+      varint.encode(lookup[k][1], buf, offset)
+      offset += varint.encode.bytes
+      buffers.push(buf)
     }
-    fs.writeFileSync(lfile, lp.from(buffers))
+    fs.writeFileSync(lfile, Buffer.concat(buffers))
   }
-  fs.writeFileSync(path.join(argv.outdir,'meta'), JSON.stringify(meta))
+  fs.writeFileSync(path.join(argv.outdir,'meta.json'), JSON.stringify(meta))
 }
 
 function diff(a,b,c) {
@@ -109,8 +115,7 @@ function eq3(a,b,c,i) {
 }
 
 function writeFields(row) {
-  var payload = Buffer.alloc(
-    varint.encodingLength(bl(row.name)) + bl(row.name)
+  var len = varint.encodingLength(bl(row.name)) + bl(row.name)
     + 4 + 4 // lon,lat
     + varint.encodingLength(bl(row.countryCode)) + bl(row.countryCode)
     + varint.encodingLength(bl(row.cc2)) + bl(row.cc2)
@@ -120,8 +125,10 @@ function writeFields(row) {
     + varint.encodingLength(bl(row.admin4)) + bl(row.admin4)
     + varint.encodingLength(row.population)
     + varint.encodingLength(row.elevation)
-  )
+  var payload = Buffer.alloc(len + varint.encodingLength(len))
   var offset = 0
+  varint.encode(len, payload, offset)
+  offset += varint.encode.bytes
   offset += writeField(row.name, payload, offset)
   offset = payload.writeFloatBE(row.longitude, offset)
   offset = payload.writeFloatBE(row.latitude, offset)

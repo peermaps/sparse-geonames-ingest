@@ -1,7 +1,5 @@
 {
   "dependencies": {
-    "classificator": "^0.3.4",
-    "length-prefixed-buffers": "^1.1.0",
     "minimist": "^1.2.6",
     "split2": "^4.1.0",
     "uniq": "^1.0.1",
