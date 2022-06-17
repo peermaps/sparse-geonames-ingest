@@ -39,10 +39,11 @@ pump(process.stdin, split(), new Transform({
     var keys = [
       row.name, row.asciiName, row.countryCode, row.cc2,
       row.admin1, row.admin2, row.admin3, row.admin4
-    ].filter(x => x && x.length > 0)
+    ]
     keys = keys.concat(row.alternateNames.split(/\s*,\s*/))
     uniq(keys)
     for (var i = 0; i < keys.length; i++) {
+      if (keys[i].length === 0) continue
       lookup.push([keys[i].toLowerCase(),row.id])
     }
     records.push([row.id,writeFields(row)])
@@ -77,7 +78,7 @@ function finish() {
     fs.writeFileSync(rfile, lp.from(buffers))
   }
   var j = 0
-  var lsize = 10_000
+  var lsize = 5_000
   for (var i = 0; i < lookup.length; i+=lsize) {
     var lfile = path.join(argv.outdir, 'l' + String(j++))
     var l0 = lookup[Math.max(0,i-1)][0]
