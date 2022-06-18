@@ -1,6 +1,7 @@
 var path = require('path')
 var varint = require('varint')
 var uniq = require('uniq')
+var multiSort = require('multi-sort-stream')
 var bl = Buffer.byteLength
 
 var append = require('./lib/append.js')

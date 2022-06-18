@@ -14,9 +14,8 @@ var argv = minimist(process.argv.slice(2), {
 })
 fs.mkdirSync(argv.outdir, { recursive: true })
 
-var ingest = require('./')({ outdir: argv.outdir })
-
 if (argv._[0] === 'load') {
+  var ingest = require('./')({ outdir: argv.outdir })
   pump(process.stdin, split(), new Transform({
     transform: function (line, enc, next) {
       ingest.write(line, next)
@@ -29,6 +28,16 @@ if (argv._[0] === 'load') {
       })
     }
   }), onerror)
+} else if (argv._[0] === 'sort') {
+  var ingest = require('./')({ outdir: argv.outdir })
+  ingest.records.sort({ batchSize: 10_000, compare }, function (err, offsets) {
+    console.log(err, offsets)
+  })
+  function compare(a, b) {
+    var ida = varint.decode(a)
+    var idb = varint.decode(b)
+    return ida < idb ? -1 : +1
+  }
 }
 
 function onerror(err) { if (err) console.error(err) }
