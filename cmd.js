@@ -30,8 +30,8 @@ if (argv._[0] === 'load') {
   }), onerror)
 } else if (argv._[0] === 'sort') {
   var ingest = require('./')({ outdir: argv.outdir })
-  ingest.records.sort({ batchSize: 10_000, compare }, function (err, offsets) {
-    console.log(err, offsets)
+  ingest.records.sort({ batchSize: 10_000, compare }, function (err) {
+    console.log(err)
   })
   function compare(a, b) {
     var ida = varint.decode(a)
