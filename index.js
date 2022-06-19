@@ -70,10 +70,46 @@ Ingest.prototype.flush = function (cb) {
   function next() { if (--pending === 0) cb() }
 }
 
-Ingest.prototype.sort = function () {
-  /*
-  records.sort((a,b) => a[0] < b[0] ? -1 : +1)
-  lookup.sort((a,b) => a[0] < b[0] ? -1 : +1)
+Ingest.prototype.sort = function (cb) {
+  if (!cb) cb = noop
+  var pending = 3
+  this.records.sort({
+    batchSize: 50_000,
+    compare: (a,b) => {
+      var ida = varint.decode(a)
+      var idb = varint.decode(b)
+      return ida < idb ? -1 : +1
+    },
+  }, done)
+  this.lookup.sort({
+    batchSize: 50_000,
+    compare: (a,b) => {
+      var alen = varint.decode(a)
+      var astart = varint.decode.bytes
+      var blen = varint.decode(b)
+      var bstart = varint.decode.bytes
+      return bcmp(a, astart, b, bstart)
+    },
+  }, done)
+  done()
+
+  function done() {
+    if (--pending !== 0) return
+    cb(null)
+  }
+}
+
+function bcmp(a,ai,b,bi) {
+  var m = Math.min(a.length-ai,b.length-bi)
+  for (var i = 0; i < m; i++) {
+    if (a[ai+i] < b[bi+i]) return -1
+    if (a[ai+i] > b[bi+i]) return +1
+  }
+  return a.length === b.length ? 0 : (a.length < b.length ? -1 : +1)
+}
+
+Ingest.prototype.build = function (cb) {
+  if (!cb) cb = noop
   var j = 0
   var meta = { record: [], lookup: [] }
   var rsize = 2_000
@@ -114,7 +150,6 @@ Ingest.prototype.sort = function () {
     fs.writeFileSync(lfile, Buffer.concat(buffers))
   }
   fs.writeFileSync(path.join(argv.outdir,'meta.json'), JSON.stringify(meta))
-  */
 }
 
 function noop() {}

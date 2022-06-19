@@ -30,14 +30,13 @@ if (argv._[0] === 'load') {
   }), onerror)
 } else if (argv._[0] === 'sort') {
   var ingest = require('./')({ outdir: argv.outdir })
-  ingest.records.sort({ batchSize: 10_000, compare }, function (err) {
+  ingest.sort(function (err) {
     console.log(err)
   })
-  function compare(a, b) {
-    var ida = varint.decode(a)
-    var idb = varint.decode(b)
-    return ida < idb ? -1 : +1
-  }
+} else if (argv._[0] === 'build') {
+  ingest.build(function (err) {
+    console.log(err)
+  })
 }
 
 function onerror(err) { if (err) console.error(err) }
