@@ -1,7 +1,10 @@
+var fs = require('fs')
 var path = require('path')
 var varint = require('varint')
 var uniq = require('uniq')
 var multiSort = require('multi-sort-stream')
+var lp = require('length-prefixed-buffers/without-count')
+var { Transform, pipeline } = require('stream')
 var bl = Buffer.byteLength
 
 var append = require('./lib/append.js')
@@ -19,6 +22,7 @@ function Ingest(opts) {
   if (!(this instanceof Ingest)) return new Ingest(opts)
   if (!opts) opts = {}
   if (typeof opts === 'string') opts = { outdir: opts }
+  this._outdir = opts.outdir
   this.records = append(path.join(opts.outdir,'records.tmp'), { limit: 50_000 })
   this.lookup = append(path.join(opts.outdir,'lookup.tmp'), { limit: 50_000 })
 }
@@ -109,47 +113,111 @@ function bcmp(a,ai,b,bi) {
 }
 
 Ingest.prototype.build = function (cb) {
+  var self = this
   if (!cb) cb = noop
-  var j = 0
   var meta = { record: [], lookup: [] }
-  var rsize = 2_000
-  for (var i = 0; i < records.length; i+=rsize) {
-    var rfile = path.join(argv.outdir, 'r' + String(j++))
-    meta.record.push(records[i][0])
-    var buffers = []
-    for (var k = i; k < i+rsize && k < records.length; k++) {
-      buffers.push(
-        Buffer.from(varint.encode(records[k][0])),
-        records[k][1]
-      )
+  var records = [], lookup = []
+  var size = 0
+  var maxSize = 100_000
+  var rindex = 0, lindex = 0
+  var pending = 2
+
+  pipeline(
+    this.records.list(),
+    Transform({
+      transform: function (buf, enc, next) {
+        if (size + buf.length > maxSize && records.length > 0) {
+          var id = varint.decode(buf)
+          meta.record.push(id)
+          size = 0
+          var rfile = path.join(self._outdir, 'r' + String(rindex++))
+          var nbuf = lp.from(records)
+          records.length = 0
+          size = buf.length
+          records.push(buf)
+          fs.writeFile(rfile, nbuf, next)
+        } else {
+          size += buf.length
+          records.push(buf)
+          next()
+        }
+      },
+      flush: function (next) {
+        if (records.length > 0) {
+          size = 0
+          var rfile = path.join(self._outdir, 'r' + String(rindex++))
+          var nbuf = lp.from(records)
+          records.length = 0
+          fs.writeFile(rfile, nbuf, next)
+        } else {
+          meta.record.pop()
+          next()
+        }
+      }
+    }),
+    done
+  )
+
+  pipeline(
+    this.lookup.list(),
+    Transform({
+      transform: function (buf, enc, next) {
+        if (size + buf.length > maxSize && lookup.length > 0) {
+          var lkey = getLKey(
+            lookup[lookup.length-2],
+            lookup[lookup.length-1],
+            buf
+          )
+          meta.lookup.push(lkey)
+          size = 0
+          var lfile = path.join(self._outdir, 'r' + String(lindex++))
+          var nbuf = lp.from(lookup)
+          lookup.length = 0
+          size = buf.length
+          lookup.push(buf)
+          fs.writeFile(lfile, nbuf, next)
+        } else {
+          size += buf.length
+          lookup.push(buf)
+          next()
+        }
+      },
+      flush: function (next) {
+        if (lookup.length > 0) {
+          size = 0
+          var lfile = path.join(self._outdir, 'l' + String(lindex++))
+          var nbuf = lp.from(lookup)
+          lookup.length = 0
+          fs.writeFile(lfile, nbuf, next)
+        } else {
+          meta.record.pop()
+          next()
+        }
+      }
+    }),
+    done
+  )
+
+  function done(err) {
+    if (err) {
+      cb(err)
+      cb = noop
+    } else if (--pending === 0) {
+      pending = 4
+      fs.writeFile(path.join(self._outdir,'meta.json'), JSON.stringify(meta), finish)
+      self.records.remove(finish)
+      self.lookup.remove(finish)
+      finish()
     }
-    fs.writeFileSync(rfile, Buffer.concat(buffers))
   }
-  var j = 0
-  var lsize = 5_000
-  for (var i = 0; i < lookup.length; i+=lsize) {
-    var lfile = path.join(argv.outdir, 'l' + String(j++))
-    var l0 = lookup[Math.max(0,i-1)][0]
-    var l1 = lookup[i][0]
-    var l2 = lookup[Math.min(lookup.length-1,i+1)][0]
-    meta.lookup.push(diff(l0,l1,l2))
-    var buffers = []
-    for (var k = i; k < i+lsize && k < lookup.length; k++) {
-      var n = Buffer.byteLength(lookup[k][0])
-      var buf = Buffer.alloc(varint.encodingLength(n)
-        + n + varint.encodingLength(lookup[k][1]))
-      var offset = 0
-      varint.encode(n, buf, offset)
-      offset += varint.encode.bytes
-      buf.write(lookup[k][0], offset)
-      offset += n
-      varint.encode(lookup[k][1], buf, offset)
-      offset += varint.encode.bytes
-      buffers.push(buf)
+  function finish(err) {
+    if (err) {
+      cb(err)
+      cb = noop
+    } else if (--pending === 0) {
+      cb(null, meta)
     }
-    fs.writeFileSync(lfile, Buffer.concat(buffers))
   }
-  fs.writeFileSync(path.join(argv.outdir,'meta.json'), JSON.stringify(meta))
 }
 
 function noop() {}
@@ -163,4 +231,15 @@ function diff(a,b,c) {
 function eq3(a,b,c,i) {
   var ca = a.charAt(i), cb = b.charAt(i), cc = c.charAt(i)
   return ca === cb && ca === cc
+}
+
+function getLKey(l0, l1, l2) {
+  if (l0 === undefined) l0 = l1
+  return diff(getKey(l0),getKey(l0),getKey(l0))
+}
+
+function getKey(buf) {
+  var len = varint.decode(buf)
+  var offset = varint.decode.bytes
+  return buf.slice(offset,offset+len).toString()
 }

@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "duplexify": "^4.1.2",
     "length-prefixed-buffers": "^1.1.1",
     "length-prefixed-stream": "^2.0.0",
     "minimist": "^1.2.6",

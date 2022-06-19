@@ -34,6 +34,7 @@ if (argv._[0] === 'load') {
     console.log(err)
   })
 } else if (argv._[0] === 'build') {
+  var ingest = require('./')({ outdir: argv.outdir })
   ingest.build(function (err) {
     console.log(err)
   })
