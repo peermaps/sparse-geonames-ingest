@@ -3,7 +3,6 @@ var path = require('path')
 var varint = require('varint')
 var uniq = require('uniq')
 var multiSort = require('multi-sort-stream')
-var lp = require('length-prefixed-buffers/without-count')
 var { Transform, pipeline } = require('stream')
 var bl = Buffer.byteLength
 
@@ -135,7 +134,7 @@ Ingest.prototype.build = function (cb) {
           meta.record.push(id)
           size = 0
           var rfile = path.join(self._outdir, 'r' + String(rindex++))
-          var nbuf = lp.from(records)
+          var nbuf = Buffer.concat(records)
           records.length = 0
           size = buf.length
           records.push(buf)
@@ -150,7 +149,7 @@ Ingest.prototype.build = function (cb) {
         if (records.length > 0) {
           size = 0
           var rfile = path.join(self._outdir, 'r' + String(rindex++))
-          var nbuf = lp.from(records)
+          var nbuf = Buffer.concat(records)
           records.length = 0
           fs.writeFile(rfile, nbuf, next)
         } else {
@@ -175,7 +174,7 @@ Ingest.prototype.build = function (cb) {
           meta.lookup.push(lkey)
           size = 0
           var lfile = path.join(self._outdir, 'l' + String(lindex++))
-          var nbuf = lp.from(lookup)
+          var nbuf = Buffer.concat(lookup)
           lookup.length = 0
           size = buf.length
           lookup.push(buf)
@@ -190,7 +189,7 @@ Ingest.prototype.build = function (cb) {
         if (lookup.length > 0) {
           size = 0
           var lfile = path.join(self._outdir, 'l' + String(lindex++))
-          var nbuf = lp.from(lookup)
+          var nbuf = Buffer.concat(lookup)
           lookup.length = 0
           fs.writeFile(lfile, nbuf, next)
         } else {
