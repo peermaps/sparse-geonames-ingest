@@ -80,8 +80,10 @@ Ingest.prototype.sort = function (cb) {
   this.records.sort({
     batchSize: 50_000,
     compare: (a,b) => {
-      var ida = varint.decode(a)
-      var idb = varint.decode(b)
+      var la = varint.decode(a)
+      var ida = varint.decode(a, varint.decode.bytes)
+      var lb = varint.decode(b)
+      var idb = varint.decode(b, varint.decode.bytes)
       return ida < idb ? -1 : +1
     },
   }, done)
@@ -125,9 +127,11 @@ Ingest.prototype.build = function (cb) {
   pipeline(
     this.records.list(),
     Transform({
+      writableObjectMode: true,
       transform: function (buf, enc, next) {
         if (size + buf.length > maxSize && records.length > 0) {
-          var id = varint.decode(buf)
+          var len = varint.decode(buf)
+          var id = varint.decode(buf, varint.decode.bytes)
           meta.record.push(id)
           size = 0
           var rfile = path.join(self._outdir, 'r' + String(rindex++))
@@ -170,7 +174,7 @@ Ingest.prototype.build = function (cb) {
           )
           meta.lookup.push(lkey)
           size = 0
-          var lfile = path.join(self._outdir, 'r' + String(lindex++))
+          var lfile = path.join(self._outdir, 'l' + String(lindex++))
           var nbuf = lp.from(lookup)
           lookup.length = 0
           size = buf.length
@@ -190,7 +194,7 @@ Ingest.prototype.build = function (cb) {
           lookup.length = 0
           fs.writeFile(lfile, nbuf, next)
         } else {
-          meta.record.pop()
+          meta.lookup.pop()
           next()
         }
       }
