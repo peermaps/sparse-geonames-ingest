@@ -113,13 +113,18 @@ function bcmp(a,ai,b,bi) {
   return a.length === b.length ? 0 : (a.length < b.length ? -1 : +1)
 }
 
-Ingest.prototype.build = function (cb) {
+Ingest.prototype.build = function (opts, cb) {
   var self = this
+  if (typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  }
+  if (!opts) opts = {}
   if (!cb) cb = noop
   var meta = { record: [], lookup: [] }
   var records = [], lookup = []
   var size = 0
-  var maxSize = 100_000
+  var maxSize = opts.size ?? 100_000
   var rindex = 0, lindex = 0
   var pending = 2
 

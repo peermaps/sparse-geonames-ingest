@@ -21,11 +21,7 @@ if (argv._[0] === 'load') {
       ingest.write(line, next)
     },
     flush: function (next) {
-      ingest.flush(function (err) {
-        if (err) return next(err)
-        //ingest.sort(next)
-        next()
-      })
+      ingest.flush(next)
     }
   }), onerror)
 } else if (argv._[0] === 'sort') {
@@ -35,9 +31,13 @@ if (argv._[0] === 'load') {
   })
 } else if (argv._[0] === 'build') {
   var ingest = require('./')({ outdir: argv.outdir })
-  ingest.build(function (err) {
+  var opts = {}
+  if (argv.size) opts.size = argv.size
+  if (typeof opts.size === 'string') opts.size = Number(opts.size.replace(/_/g,''))
+  ingest.build(opts, function (err) {
     console.log(err)
   })
+} else if (argv._[0] === 'ingest') { // everything
 }
 
 function onerror(err) { if (err) console.error(err) }
