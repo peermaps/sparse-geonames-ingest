@@ -138,7 +138,6 @@ Ingest.prototype.build = function (cb) {
           meta.record.push(id)
           size = 0
           var rfile = path.join(self._outdir, 'r' + String(rindex++))
-          console.log(rfile, prevId,'..',id)
           var nbuf = Buffer.concat(records)
           records.length = 0
           size = buf.length
@@ -171,14 +170,13 @@ Ingest.prototype.build = function (cb) {
     Transform({
       transform: function (buf, enc, next) {
         if (size + buf.length > maxSize && lookup.length > 0) {
-          lPushNext = [lookup[lookup.length-1]]
+          meta.lookup.push(getLKey(lookup[lookup.length-1],buf))
           size = 0
           var lfile = path.join(self._outdir, 'l' + String(lindex++))
           var nbuf = Buffer.concat(lookup)
           lookup.length = 0
           size = buf.length
           lookup.push(buf)
-          meta.lookup.push(getKey(buf))
           fs.writeFile(lfile, nbuf, next)
         } else {
           size += buf.length
@@ -226,20 +224,14 @@ Ingest.prototype.build = function (cb) {
 
 function noop() {}
 
-function diff(a,b,c) {
-  var l = Math.min(a.length,b.length,c.length)
-  for (var i = 0; i < l && eq3(a,b,c,i); i++);
+function llcm(a,b) {
+  var l = Math.min(a.length,b.length)
+  for (var i = 0; i < l && a.charAt(i) === b.charAt(i); i++);
   return b.substr(0,i+1)
 }
 
-function eq3(a,b,c,i) {
-  var ca = a.charAt(i), cb = b.charAt(i), cc = c.charAt(i)
-  return ca === cb && ca === cc
-}
-
-function getLKey(l0, l1, l2) {
-  if (l0 === undefined) l0 = l1
-  return diff(getKey(l0),getKey(l0),getKey(l0))
+function getLKey(a, b) {
+  return llcm(getKey(a),getKey(b))
 }
 
 function getKey(buf) {
