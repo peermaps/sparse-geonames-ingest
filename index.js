@@ -67,8 +67,8 @@ Ingest.prototype._pushLookup = function (key, id) {
 Ingest.prototype.flush = function (cb) {
   if (!cb) cb = noop
   var pending = 3
-  this.records.push(next)
-  this.lookup.push(next)
+  this.records.flush(next)
+  this.lookup.flush(next)
   next()
   function next() { if (--pending === 0) cb() }
 }
@@ -128,12 +128,17 @@ Ingest.prototype.build = function (cb) {
     Transform({
       writableObjectMode: true,
       transform: function (buf, enc, next) {
+        var len = varint.decode(buf)
+        var id = varint.decode(buf, varint.decode.bytes)
         if (size + buf.length > maxSize && records.length > 0) {
           var len = varint.decode(buf)
           var id = varint.decode(buf, varint.decode.bytes)
+          var prevLen = varint.decode(records[0])
+          var prevId = varint.decode(records[0], varint.decode.bytes)
           meta.record.push(id)
           size = 0
           var rfile = path.join(self._outdir, 'r' + String(rindex++))
+          console.log(rfile, prevId,'..',id)
           var nbuf = Buffer.concat(records)
           records.length = 0
           size = buf.length
@@ -166,18 +171,14 @@ Ingest.prototype.build = function (cb) {
     Transform({
       transform: function (buf, enc, next) {
         if (size + buf.length > maxSize && lookup.length > 0) {
-          var lkey = getLKey(
-            lookup[lookup.length-2],
-            lookup[lookup.length-1],
-            buf
-          )
-          meta.lookup.push(lkey)
+          lPushNext = [lookup[lookup.length-1]]
           size = 0
           var lfile = path.join(self._outdir, 'l' + String(lindex++))
           var nbuf = Buffer.concat(lookup)
           lookup.length = 0
           size = buf.length
           lookup.push(buf)
+          meta.lookup.push(getKey(buf))
           fs.writeFile(lfile, nbuf, next)
         } else {
           size += buf.length
