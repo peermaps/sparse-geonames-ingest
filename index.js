@@ -2,7 +2,6 @@ var fs = require('fs')
 var path = require('path')
 var varint = require('varint')
 var uniq = require('uniq')
-var multiSort = require('multi-sort-stream')
 var { Transform, pipeline } = require('stream')
 var bl = Buffer.byteLength
 
@@ -22,8 +21,12 @@ function Ingest(opts) {
   if (!opts) opts = {}
   if (typeof opts === 'string') opts = { outdir: opts }
   this._outdir = opts.outdir
-  this.records = append(path.join(opts.outdir,'records.tmp'), { limit: 50_000 })
-  this.lookup = append(path.join(opts.outdir,'lookup.tmp'), { limit: 50_000 })
+  this.records = append(path.join(opts.outdir,'records.tmp'), {
+    limit: opts.recordsLimit ?? opts.limit ?? 50_000
+  })
+  this.lookup = append(path.join(opts.outdir,'lookup.tmp'), {
+    limit: opts.lookupLimit ?? opts.limit ?? 50_000
+  })
 }
 
 Ingest.prototype.write = function (line, cb) {

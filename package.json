@@ -1,4 +1,10 @@
 {
+  "name": "sparse-geonames-ingest",
+  "version": "1.0.0",
+  "description": "scripts to generate sparse p2p archives for geonames data",
+  "bin": {
+    "sparse-geonames-ingest": "cmd.js"
+  },
   "dependencies": {
     "duplexify": "^4.1.2",
     "length-prefixed-buffers": "^1.1.1",
@@ -8,5 +14,6 @@
     "split2": "^4.1.0",
     "uniq": "^1.0.1",
     "varint": "^6.0.0"
-  }
+  },
+  "license": "bsd"
 }
