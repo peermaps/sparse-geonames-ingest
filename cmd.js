@@ -34,13 +34,13 @@ if (argv._[0] === 'load') {
       build(ingest, onerror)
     })
   })
-}
+} else usage()
 
 function load(ingest, cb) {
   var split = require('split2')
   var instream = argv.infile === undefined || argv.infile === '-'
     ? process.stdin : fs.createReadStream(argv.infile)
-  pipeline(instream, new Transform({
+  pipeline(instream, split(), new Transform({
     transform: (line, enc, next) => ingest.write(line, next),
     flush: (next) => ingest.flush(next),
   }), cb)
