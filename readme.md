@@ -8,6 +8,7 @@ Sorting and loading results are written to disk to save memory.
 
 This tool is capable of building an archive from `allCountries.txt`, a 1.5GB archive (as of 2022)
 with all geonames data. On my laptop this took 38 minutes and used several gigabytes of RAM.
+`cities500.txt` takes 10 seconds.
 
 [sparse-geonames-search]: https://github.com/peermaps/sparse-geonames-search
 
