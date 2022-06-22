@@ -40,10 +40,10 @@ sparse-geonames-ingest build -o OUTDIR (--size=SIZE)
 # api
 
 ``` js
-var sgingest = require('sparse-geonames-ingest')
+var Ingest = require('sparse-geonames-ingest')
 ```
 
-## var ingest = sgingest(opts)
+## var ingest = Ingest(opts)
 
 * opts.outdir - directory to use for output and temporary storage
 * opts.recordsLimit - number of records to buffer before flushing to disk
@@ -60,9 +60,13 @@ Flush buffered records in memory to disk, calling `cb(err)` when complete.
 
 ## ingest.sort(cb)
 
-Sort 
+Sort data after lines have been written, calling `cb(err)` when complete.
 
 ## ingest.build(opts={}, cb)
+
+Build data after sorting into many files, calling `cb(err)` when complete.
+
+* opts.size - maximum size in bytes for each built file. default `10_000`
 
 # install
 
